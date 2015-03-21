@@ -74,7 +74,8 @@ def main():
             login = dict(required=True),
             password = dict(required=True),
             guest = dict(required=True, aliases=['name']),
-            notes = dict()
+            notes = dict(),
+            custom_attrs = dict()
         )
     )
 
@@ -83,6 +84,7 @@ def main():
     password = module.params.get('password')
     guest = module.params.get('guest')
     notes = module.params.get('notes', None)
+    custom_attrs = module.params.get('custom_attrs', None)
 
     res = {}
 
@@ -120,6 +122,27 @@ def main():
 
         if status == vi_task.STATE_ERROR:
             module.fail_json(msg=vi_task.get_error_message())
+
+    if custom_attrs:
+        serv_cf = pysphere.VIProperty(server, server._do_service_content.CustomFieldsManager)
+        cf = dict((cf.name, cf.key) for cf in serv_cf.field)
+
+        request = pysphere.resources.VimService_services.SetFieldRequestMsg()
+        cfm = server._do_service_content.CustomFieldsManager
+        this = request.new__this(cfm)
+        this.set_attribute_type(cfm.get_attribute_type())
+        request.set_element__this(this)
+        entity = request.new_entity(vm._mor)
+        request.set_element_entity(entity)
+
+        res['changed'] = True
+        res['custom_attrs'] = custom_attrs
+
+        for attr in custom_attrs:               # attr it's a dictionary {"Owner" : "John Doe"}
+            attr_name = str(attr.keys()[0])     # attr_name is a parameter name. "Owner"
+            request.Key = int(cf.get(attr_name))# cf.get(attr_name) must be integer
+            request.Value = attr[attr_name]     # attr is a string
+            server._proxy.SetField(request)
 
     server.disconnect()
     module.exit_json(**res)
