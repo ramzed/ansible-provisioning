@@ -49,6 +49,9 @@ options:
   notes:
     description:
       - Notes to add to the guest
+  custom_attrs:
+    description:
+      - Custom fields to add to the guest VM.
 examples:
   - description: Modify guest notes
     code: |
